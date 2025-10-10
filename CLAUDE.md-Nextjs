@@ -1,0 +1,145 @@
+# CLAUDE.md - Next.js Development Guide
+
+## 📦 Package Manager
+
+**CRITICAL: Always use the same package manager consistently**
+- Check for `yarn.lock` → use `yarn`
+- Check for `package-lock.json` → use `npm`
+- **NEVER mix** npm and yarn in the same project
+
+### Yarn Projects
+```bash
+yarn dev              # Start development server
+yarn build            # Production build
+yarn add <package>    # Install dependency
+yarn remove <package> # Remove dependency
+```
+
+### NPM Projects
+```bash
+npm run dev           # Start development server
+npm run build         # Production build
+npm install <package> # Install dependency
+npm uninstall <package> # Remove dependency
+```
+
+## 🚀 SSR/Client Component Architecture
+
+### Default: Server Components (Preferred)
+
+**Server Component Pattern:**
+```typescript
+// components/organisms/EmailList/EmailList.tsx
+// DEFAULT: No "use client" directive = Server Component
+import { Surface, Text } from "@/components/atoms";
+
+export function EmailList({ emails }: { emails: Email[] }) {
+  return (
+    <Surface>
+      {emails.map((email) => (
+        <EmailCard key={email.id} email={email} />
+      ))}
+    </Surface>
+  );
+}
+```
+
+### Client Components (Use Sparingly)
+
+**When to Use "use client":**
+- Event handlers (onClick, onSubmit, etc.)
+- React state (useState, useReducer)
+- React effects (useEffect, useLayoutEffect)
+- Browser-only APIs (localStorage, window, document)
+- Third-party libraries requiring client-side
+
+**Minimal Client Component Pattern:**
+```typescript
+// components/atoms/InteractiveButton/InteractiveButton.tsx
+"use client"; // ONLY when absolutely necessary
+
+import { useState } from "react";
+import { Button } from "@mui/material";
+
+export function InteractiveButton({ onClick, ...props }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async (event) => {
+    setLoading(true);
+    await onClick?.(event);
+    setLoading(false);
+  };
+
+  return <Button {...props} onClick={handleClick} disabled={loading} />;
+}
+```
+
+## 🔥 Hydration Error Prevention (CRITICAL)
+
+**NEVER create hydration mismatches:**
+
+### Forbidden Patterns:
+- ❌ `Date.now()`, `Math.random()` or any non-deterministic values in render
+- ❌ `typeof window !== 'undefined'` conditional rendering
+- ❌ Browser-specific APIs in initial render (localStorage, sessionStorage)
+- ❌ Invalid HTML nesting (divs in p tags, etc.)
+
+### Required Patterns:
+- ✅ Use `useEffect` for client-only code after hydration
+- ✅ Use `useState` with consistent initial values across server/client
+- ✅ Use `suppressHydrationWarning={true}` ONLY for unavoidable browser differences
+- ✅ Use Next.js `dynamic()` with `ssr: false` for client-only components
+
+### Example Safe Patterns:
+```typescript
+// ✅ Safe: Consistent across server/client
+const [mounted, setMounted] = useState(false);
+useEffect(() => setMounted(true), []);
+if (!mounted) return <div>Loading...</div>;
+
+// ✅ Safe: Client-only component
+const ClientComponent = dynamic(() => import('./ClientOnly'), { ssr: false });
+
+// ✅ Safe: Fixed seed values for demo data
+const DEMO_SEEDS = [
+  { id: 'demo-1', value: 123, date: '2024-01-01' },
+  { id: 'demo-2', value: 456, date: '2024-01-02' }
+];
+```
+
+## 🏗️ Component Architecture
+
+### File Size & Modularity
+- **Keep files short**: Aim for <200 lines per component file
+- **Single responsibility**: Each component should have one clear purpose
+- **Extract when growing**: Split into smaller pieces when approaching 200 lines
+- **Avoid monolithic components**: Break down complex UIs into composable parts
+
+### Component Organization
+```
+src/
+├── components/
+│   ├── ui/              # Design system components (Button, Card, Input, Dialog)
+│   ├── layout/          # Layout components (Header, Sidebar, Footer)
+│   └── feature/         # Feature-specific components
+├── lib/                 # Utility functions and configurations
+├── hooks/               # Custom React hooks
+└── types/               # TypeScript type definitions
+```
+
+## 🔗 Environment Variables
+
+### Naming Convention:
+- `NEXT_PUBLIC_*` for client-side variables (Next.js)
+- All other variables are server-side only
+- Never commit `.env.local` to git
+- Provide `.env.example` template
+
+### Required Variables (Template):
+```env
+# App Config
+NEXT_PUBLIC_APP_URL=
+
+# API Keys (server-side only)
+API_KEY=
+```

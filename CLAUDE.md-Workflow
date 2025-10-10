@@ -1,0 +1,122 @@
+# CLAUDE.md - Development Workflow Guide
+
+## 📝 Development Workflow (MANDATORY)
+
+### For Every Change:
+
+1. **Code Review**: Review the changes you made
+   - Check for code quality issues
+   - Verify type safety
+   - Ensure best practices are followed
+   - Look for potential bugs or edge cases
+
+2. **Build**: Run production build to catch errors
+   ```bash
+   yarn build  # or npm run build
+   ```
+   - Fix any TypeScript errors
+   - Fix any build errors
+   - Ensure all imports are correct
+
+3. **Unit Tests**: Run tests if applicable
+   ```bash
+   yarn test  # or npm test
+   ```
+
+4. **Commit and Push**: Only after build succeeds
+   ```bash
+   git add .
+   git commit -m "descriptive commit message"
+   git push
+   ```
+
+**Why this is essential:**
+- Catches TypeScript errors and build issues early
+- Ensures deployment will succeed
+- Validates all components compile correctly
+- Prevents deployment failures
+- Maintains code quality
+
+**IMPORTANT**: Never skip the build step. If build fails, fix the errors before committing.
+
+## 🔧 Git Workflow
+
+**ALWAYS follow these steps for ALL changes:**
+```bash
+# 1. Review changes
+git diff
+
+# 2. Stage files
+git add <files>
+
+# 3. Commit with descriptive message
+git commit -m "descriptive message"
+
+# 4. Push to remote
+git push
+```
+
+## 🧪 Testing Strategy
+
+### Component Testing
+```bash
+# Use React Testing Library + Jest
+yarn add -D @testing-library/react @testing-library/jest-dom jest
+
+# Test files next to components
+Surface/
+  ├── Surface.tsx
+  ├── Surface.test.tsx
+  └── index.ts
+```
+
+### Testing Requirements:
+- **Unit tests** for all components
+- **Coverage**: Aim for >80% test coverage
+- **Test structure**: Place test files next to components
+- **Fail-fast**: Tests must pass before build/commit
+
+## 🚢 Deployment
+
+### Pre-Deploy Checklist:
+- [ ] All tests passing
+- [ ] Build successful
+- [ ] Environment variables configured
+- [ ] Database rules updated (if applicable)
+- [ ] Cost impact assessed
+- [ ] Security review completed
+
+### Deployment Commands:
+```bash
+# Frontend (example)
+yarn build && yarn start
+```
+
+## 🔍 Debugging Best Practices
+
+### Hydration Issues Debugging:
+1. Check browser extensions (ad blockers, etc.) that modify DOM
+2. Use React DevTools Profiler to identify hydration mismatches
+3. Compare server HTML vs client HTML in browser dev tools
+4. Temporarily add `__NEXT_DISABLE_HYDRATION_WARNING=true` for debugging only
+
+## ⚠️ Critical Implementation Notes
+
+### Zero Tolerance for Hacks:
+- Never use `setTimeout` for state synchronization
+- Never use `window.location.reload()` to fix state issues
+- Never use fallback patterns to mask underlying problems
+- Always identify and fix root causes
+
+### Proper State Management:
+- Use React state correctly
+- Use proper data fetching patterns (React Query, SWR, etc.)
+- No polling, no forced state changes, no bypass patterns
+- Implement proper error boundaries
+
+### Performance Best Practices:
+- Code splitting with dynamic imports
+- Lazy loading for non-critical components
+- Memoization for expensive calculations
+- Optimize images with next/image or similar
+- Monitor bundle size

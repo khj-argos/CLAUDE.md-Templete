@@ -1,0 +1,77 @@
+# CLAUDE.md - AI Integration Guide
+
+## 🤖 AI Integration Best Practices
+
+### Text Processing Rules (CRITICAL):
+- **ALWAYS USE AI FOR TEXT PROCESSING** - NEVER use keyword-based classification or rule-based processing
+- **Always use AI (Gemini, etc.) for**: Email classification, summarization, text analysis
+- **No exceptions** - Rules-based approaches are forbidden for text processing
+- Secure API key management via environment variables
+- Implement caching strategies to minimize API calls
+- Robust error handling and backoff strategies for rate limits
+
+### AI-First Decision Making:
+- When dealing with unstructured text → Use AI models
+- When categorizing content → Use AI classification
+- When extracting insights → Use AI analysis
+- When generating content → Use AI generation
+
+## 🔗 Environment Variables
+
+### AI API Configuration:
+```env
+# AI APIs
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+
+# Other AI Services
+PERPLEXITY_API_KEY=
+```
+
+## 📈 AI Performance Optimization
+
+### Caching Strategy:
+```typescript
+// Cache AI responses to minimize API calls
+const cache = new Map();
+
+async function getAIResponse(prompt: string) {
+  if (cache.has(prompt)) {
+    return cache.get(prompt);
+  }
+
+  const response = await callAI(prompt);
+  cache.set(prompt, response);
+  return response;
+}
+```
+
+### Error Handling:
+```typescript
+async function callAIWithRetry(prompt: string, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await callAI(prompt);
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+}
+```
+
+## 🔒 Security Best Practices
+
+### API Key Management:
+- Never hardcode API keys
+- Use environment variables
+- Rotate keys regularly
+- Monitor usage and set limits
+- Implement rate limiting on your end
+
+### Data Privacy:
+- Never send sensitive user data to AI without consent
+- Implement data anonymization where possible
+- Follow GDPR/privacy regulations
+- Log AI interactions for audit purposes

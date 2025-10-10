@@ -1,0 +1,92 @@
+# CLAUDE.md - Firebase Development Guide
+
+## 🔒 Firebase Integration Rules
+
+When adding any Firestore database calls:
+1. **Always update Firestore security rules** in `firestore.rules`
+2. **Document new collections/documents** in schema files
+3. **Test rules locally** before deploying
+4. **Deploy rules** with `firebase deploy --only firestore:rules`
+5. **Never store sensitive data** in Firestore without encryption
+
+### Data Schema Management (CRITICAL)
+**Always update schema files when making Firestore-related changes:**
+
+1. **Update Schema Files First**: Before implementing data changes, update schema files
+2. **Reference Schema Files**: Always refer to schemas for consistency
+3. **Document New Collections**: Create new schema files for new collections
+4. **Maintain Backward Compatibility**: Ensure compatibility or plan migration
+5. **Collection Paths**: Use exact paths as documented (e.g., `aiPersonas/{id}`, not `AIPersonas/{id}`)
+6. **Field Names**: Match schema exactly, check required vs optional fields
+7. **Data Types**: Follow TypeScript interface definitions strictly
+
+### Firebase Functions Deployment
+**IMPORTANT**: Deploy functions in the background. Do NOT run deployment during active development.
+
+```bash
+cd functions
+npm run build  # or yarn build
+firebase deploy --only functions
+```
+
+### Firebase Functions Best Practices
+1. **1 File 1 Function Principle**: Each function in its own file for maintainability
+2. **Module Naming**: Functions auto-prefix with module name (e.g., `ai-generateResponse`)
+3. **Shared Utilities**: Extract common code to dedicated shared files
+4. **Always use Firebase Functions 2.0 syntax** for new functions
+
+## 🔍 Firebase Functions Debugging
+
+Query logs for specific functions to avoid searching through all logs:
+
+```bash
+# Query logs for a specific function
+gcloud functions logs read ai-generateAiResponse --region=us-central1 --limit=50
+
+# Real-time log streaming
+gcloud functions logs tail ai-generateAiResponse --region=us-central1
+
+# Query with filters using Cloud Logging
+gcloud logging read "(resource.type='cloud_function' resource.labels.function_name='ai-generateAiResponse')" --limit=50 --format="table(timestamp,severity,textPayload)"
+```
+
+**Function Error Debugging Steps:**
+1. Check function exists and is deployed: `gcloud functions list --filter="name:FUNCTION_NAME"`
+2. Verify function parameters match expected schema
+3. Check for missing environment variables or secrets
+4. Use specific function name filters to isolate relevant logs
+5. Monitor real-time logs during function execution
+
+## 🔗 Environment Variables
+
+### Firebase Configuration:
+```env
+# Firebase
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+```
+
+## 🚢 Deployment
+
+### Deployment Commands:
+```bash
+# Firebase
+firebase deploy --only hosting
+firebase deploy --only functions
+firebase deploy --only firestore:rules
+```
+
+## 📈 Performance Monitoring
+
+```typescript
+import { trace } from "firebase/performance";
+
+const processTrace = trace("process_name");
+processTrace.start();
+// ... processing
+processTrace.stop();
+```
