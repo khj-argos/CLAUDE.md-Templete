@@ -1,0 +1,471 @@
+# CLAUDE.md - Universal Development Guide
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 🎯 Design Principles (STRICT)
+
+1. **NO raw HTML elements** - Use UI library components only (MUI Surface/Box replaces div)
+2. **200 lines max per file** - Aggressively split components into smaller files
+3. **DRY everything** - Reusable components and hooks, never duplicate code
+4. **Atomic Design** - Atoms → Molecules → Organisms → Templates
+5. **Type-safe** - Full TypeScript, no `any` types allowed
+6. **SSR First** - Use Next.js SSR/ISR for performance, minimize "use client"
+7. **Component Composition** - Build complex from simple, prefer composition over inheritance
+8. **Client Components Minimized** - Always prefer SSR, use "use client" sparingly
+9. **NO FALLBACKS OR WORKAROUNDS** - Never use setTimeout, fallback patterns, or workarounds
+10. **NO COMPROMISES** - Fix root causes, not symptoms. No shortcuts or band-aid solutions
+
+## 📦 Package Manager
+
+**CRITICAL: Always use the same package manager consistently**
+- Check for `yarn.lock` → use `yarn`
+- Check for `package-lock.json` → use `npm`
+- **NEVER mix** npm and yarn in the same project
+
+### Yarn Projects
+```bash
+yarn dev              # Start development server
+yarn build            # Production build
+yarn add <package>    # Install dependency
+yarn remove <package> # Remove dependency
+```
+
+### NPM Projects
+```bash
+npm run dev           # Start development server
+npm run build         # Production build
+npm install <package> # Install dependency
+npm uninstall <package> # Remove dependency
+```
+
+## 🏗️ Component Architecture
+
+### File Size & Modularity
+- **Keep files short**: Aim for <200 lines per component file
+- **Single responsibility**: Each component should have one clear purpose
+- **Extract when growing**: Split into smaller pieces when approaching 200 lines
+- **Avoid monolithic components**: Break down complex UIs into composable parts
+
+### Component Organization
+```
+src/
+├── components/
+│   ├── ui/              # Design system components (Button, Card, Input, Dialog)
+│   ├── layout/          # Layout components (Header, Sidebar, Footer)
+│   └── feature/         # Feature-specific components
+├── lib/                 # Utility functions and configurations
+├── hooks/               # Custom React hooks
+└── types/               # TypeScript type definitions
+```
+
+## 🚀 SSR/Client Component Architecture
+
+### Default: Server Components (Preferred)
+
+**Server Component Pattern:**
+```typescript
+// components/organisms/EmailList/EmailList.tsx
+// DEFAULT: No "use client" directive = Server Component
+import { Surface, Text } from "@/components/atoms";
+
+export function EmailList({ emails }: { emails: Email[] }) {
+  return (
+    <Surface>
+      {emails.map((email) => (
+        <EmailCard key={email.id} email={email} />
+      ))}
+    </Surface>
+  );
+}
+```
+
+### Client Components (Use Sparingly)
+
+**When to Use "use client":**
+- Event handlers (onClick, onSubmit, etc.)
+- React state (useState, useReducer)
+- React effects (useEffect, useLayoutEffect)
+- Browser-only APIs (localStorage, window, document)
+- Third-party libraries requiring client-side
+
+**Minimal Client Component Pattern:**
+```typescript
+// components/atoms/InteractiveButton/InteractiveButton.tsx
+"use client"; // ONLY when absolutely necessary
+
+import { useState } from "react";
+import { Button } from "@mui/material";
+
+export function InteractiveButton({ onClick, ...props }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async (event) => {
+    setLoading(true);
+    await onClick?.(event);
+    setLoading(false);
+  };
+
+  return <Button {...props} onClick={handleClick} disabled={loading} />;
+}
+```
+
+## 🔥 Hydration Error Prevention (CRITICAL)
+
+**NEVER create hydration mismatches:**
+
+### Forbidden Patterns:
+- ❌ `Date.now()`, `Math.random()` or any non-deterministic values in render
+- ❌ `typeof window !== 'undefined'` conditional rendering
+- ❌ Browser-specific APIs in initial render (localStorage, sessionStorage)
+- ❌ Invalid HTML nesting (divs in p tags, etc.)
+
+### Required Patterns:
+- ✅ Use `useEffect` for client-only code after hydration
+- ✅ Use `useState` with consistent initial values across server/client
+- ✅ Use `suppressHydrationWarning={true}` ONLY for unavoidable browser differences
+- ✅ Use Next.js `dynamic()` with `ssr: false` for client-only components
+
+### Example Safe Patterns:
+```typescript
+// ✅ Safe: Consistent across server/client
+const [mounted, setMounted] = useState(false);
+useEffect(() => setMounted(true), []);
+if (!mounted) return <div>Loading...</div>;
+
+// ✅ Safe: Client-only component
+const ClientComponent = dynamic(() => import('./ClientOnly'), { ssr: false });
+
+// ✅ Safe: Fixed seed values for demo data
+const DEMO_SEEDS = [
+  { id: 'demo-1', value: 123, date: '2024-01-01' },
+  { id: 'demo-2', value: 456, date: '2024-01-02' }
+];
+```
+
+## 📝 Development Workflow (MANDATORY)
+
+### For Every Change:
+
+1. **Code Review**: Review the changes you made
+   - Check for code quality issues
+   - Verify type safety
+   - Ensure best practices are followed
+   - Look for potential bugs or edge cases
+
+2. **Build**: Run production build to catch errors
+   ```bash
+   yarn build  # or npm run build
+   ```
+   - Fix any TypeScript errors
+   - Fix any build errors
+   - Ensure all imports are correct
+
+3. **Unit Tests**: Run tests if applicable
+   ```bash
+   yarn test  # or npm test
+   ```
+
+4. **Commit and Push**: Only after build succeeds
+   ```bash
+   git add .
+   git commit -m "descriptive commit message"
+   git push
+   ```
+
+**Why this is essential:**
+- Catches TypeScript errors and build issues early
+- Ensures deployment will succeed
+- Validates all components compile correctly
+- Prevents deployment failures
+- Maintains code quality
+
+**IMPORTANT**: Never skip the build step. If build fails, fix the errors before committing.
+
+## 🔧 Git Workflow
+
+**ALWAYS follow these steps for ALL changes:**
+```bash
+# 1. Review changes
+git diff
+
+# 2. Stage files
+git add <files>
+
+# 3. Commit with descriptive message
+git commit -m "descriptive message"
+
+# 4. Push to remote
+git push
+```
+
+## 🔒 Firebase Integration Rules (If Applicable)
+
+When adding any Firestore database calls:
+1. **Always update Firestore security rules** in `firestore.rules`
+2. **Document new collections/documents** in schema files
+3. **Test rules locally** before deploying
+4. **Deploy rules** with `firebase deploy --only firestore:rules`
+5. **Never store sensitive data** in Firestore without encryption
+
+### Data Schema Management (CRITICAL)
+**Always update schema files when making Firestore-related changes:**
+
+1. **Update Schema Files First**: Before implementing data changes, update schema files
+2. **Reference Schema Files**: Always refer to schemas for consistency
+3. **Document New Collections**: Create new schema files for new collections
+4. **Maintain Backward Compatibility**: Ensure compatibility or plan migration
+5. **Collection Paths**: Use exact paths as documented (e.g., `aiPersonas/{id}`, not `AIPersonas/{id}`)
+6. **Field Names**: Match schema exactly, check required vs optional fields
+7. **Data Types**: Follow TypeScript interface definitions strictly
+
+### Firebase Functions Deployment
+**IMPORTANT**: Deploy functions in the background. Do NOT run deployment during active development.
+
+```bash
+cd functions
+npm run build  # or yarn build
+firebase deploy --only functions
+```
+
+### Firebase Functions Best Practices
+1. **1 File 1 Function Principle**: Each function in its own file for maintainability
+2. **Module Naming**: Functions auto-prefix with module name (e.g., `ai-generateResponse`)
+3. **Shared Utilities**: Extract common code to dedicated shared files
+4. **Always use Firebase Functions 2.0 syntax** for new functions
+
+## 📊 MUI v7 Grid Usage (If Using MUI)
+
+**IMPORTANT**: MUI v7 uses `size` prop instead of breakpoint-specific props.
+
+### Correct Usage:
+```jsx
+import { Grid } from "@mui/material";
+
+// Use 'size' prop instead of direct breakpoint props
+<Grid container spacing={3}>
+  <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+    {/* Content */}
+  </Grid>
+</Grid>
+```
+
+### Migration Notes:
+- Convert `xs={12} md={6}` → `size={{ xs: 12, md: 6 }}`
+- Grid items no longer need the `item` prop
+- All grids are items by default
+
+## 🎨 Styling Approach
+
+### Priority Order:
+1. **UI Library components** (MUI, Radix UI, etc.) - Use component-specific styling props
+2. **Tailwind utilities** for rapid prototyping and layout
+3. **CSS Modules** for component-scoped styles
+4. **Styled components** only when absolutely necessary
+
+### Design Tokens:
+- **Consistent colors**: Use theme tokens, never hardcoded hex values
+- **Consistent spacing**: Use theme spacing scale
+- **Consistent typography**: Use theme typography variants
+- **Component variants**: Style variations through props, not separate components
+
+## 🧪 Testing Strategy
+
+### Component Testing
+```bash
+# Use React Testing Library + Jest
+yarn add -D @testing-library/react @testing-library/jest-dom jest
+
+# Test files next to components
+Surface/
+  ├── Surface.tsx
+  ├── Surface.test.tsx
+  └── index.ts
+```
+
+### Testing Requirements:
+- **Unit tests** for all components
+- **Coverage**: Aim for >80% test coverage
+- **Test structure**: Place test files next to components
+- **Fail-fast**: Tests must pass before build/commit
+
+## 📚 Documentation
+
+### Code Documentation:
+- **JSDoc comments** for complex functions
+- **README.md** in each major feature directory
+- **Type definitions** with clear interfaces
+- **Example usage** in component files
+
+### Project Documentation:
+- Maintain up-to-date README.md
+- Document environment variables
+- Document deployment process
+- Keep CHANGELOG.md current
+
+## 🏷️ Naming Conventions
+
+### File & Folder Naming (CRITICAL for Linux Compatibility):
+- **ALWAYS use lowercase** for all folders and files
+- **Use kebab-case** for multi-word names (e.g., `ai-economic-order`, not `AIEconomicOrder`)
+- **Never use PascalCase or camelCase** in file/folder names
+- **This is required** for Linux deployment compatibility
+- Apply to all new components, pages, and directories
+
+## ⚠️ Critical Implementation Notes
+
+### Zero Tolerance for Hacks:
+- Never use `setTimeout` for state synchronization
+- Never use `window.location.reload()` to fix state issues
+- Never use fallback patterns to mask underlying problems
+- Always identify and fix root causes
+
+### Root-Level Problem Resolution (CRITICAL):
+- **NEVER use frontend fallbacks or workarounds** - Fix the underlying data/backend issue
+- **Fix data layer problems fundamentally** - Don't mask database inconsistencies with UI logic
+- **Eliminate technical debt immediately** - Never create quick fixes that defer proper solutions
+- **Address root causes, not symptoms** - If data is missing/incorrect, fix the data source
+- **Database integrity first** - Ensure Firestore/database handles edge cases properly
+- **No band-aid solutions** - Temporary fixes accumulate tech debt
+- **Data validation at the source** - Implement validation in backend, not just frontend
+- **Backend-first problem solving** - Check if issue stems from backend before frontend fixes
+
+### AI Integration Best Practices:
+- **ALWAYS USE AI FOR TEXT PROCESSING** - NEVER use keyword-based classification or rule-based processing
+- **Always use AI (Gemini, etc.) for**: Email classification, summarization, text analysis
+- **No exceptions** - Rules-based approaches are forbidden for text processing
+- Secure API key management via environment variables
+- Implement caching strategies to minimize API calls
+- Robust error handling and backoff strategies for rate limits
+
+### Proper State Management:
+- Use React state correctly
+- Use proper data fetching patterns (React Query, SWR, etc.)
+- No polling, no forced state changes, no bypass patterns
+- Implement proper error boundaries
+
+### Performance Best Practices:
+- Code splitting with dynamic imports
+- Lazy loading for non-critical components
+- Memoization for expensive calculations
+- Optimize images with next/image or similar
+- Monitor bundle size
+
+## 🔗 Environment Variables
+
+### Naming Convention:
+- `NEXT_PUBLIC_*` for client-side variables (Next.js)
+- All other variables are server-side only
+- Never commit `.env.local` to git
+- Provide `.env.example` template
+
+### Required Variables (Template):
+```env
+# Firebase (if applicable)
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+
+# API Keys
+GEMINI_API_KEY=
+PERPLEXITY_API_KEY=
+
+# App Config
+NEXT_PUBLIC_APP_URL=
+```
+
+## 🚢 Deployment
+
+### Pre-Deploy Checklist:
+- [ ] All tests passing
+- [ ] Build successful
+- [ ] Environment variables configured
+- [ ] Database rules updated (if applicable)
+- [ ] Cost impact assessed
+- [ ] Security review completed
+
+### Deployment Commands:
+```bash
+# Frontend (example)
+yarn build && yarn start
+
+# Firebase (if applicable)
+firebase deploy --only hosting
+firebase deploy --only functions
+firebase deploy --only firestore:rules
+```
+
+## 📈 Monitoring & Analytics
+
+### Track Key Metrics:
+- User engagement events
+- Performance metrics (Core Web Vitals)
+- Error rates and types
+- API usage and costs
+
+### Performance Monitoring:
+```typescript
+import { trace } from "firebase/performance";
+
+const processTrace = trace("process_name");
+processTrace.start();
+// ... processing
+processTrace.stop();
+```
+
+## 🔍 Debugging Best Practices
+
+### Firebase Functions Debugging
+Query logs for specific functions to avoid searching through all logs:
+
+```bash
+# Query logs for a specific function
+gcloud functions logs read ai-generateAiResponse --region=us-central1 --limit=50
+
+# Real-time log streaming
+gcloud functions logs tail ai-generateAiResponse --region=us-central1
+
+# Query with filters using Cloud Logging
+gcloud logging read "(resource.type='cloud_function' resource.labels.function_name='ai-generateAiResponse')" --limit=50 --format="table(timestamp,severity,textPayload)"
+```
+
+**Function Error Debugging Steps:**
+1. Check function exists and is deployed: `gcloud functions list --filter="name:FUNCTION_NAME"`
+2. Verify function parameters match expected schema
+3. Check for missing environment variables or secrets
+4. Use specific function name filters to isolate relevant logs
+5. Monitor real-time logs during function execution
+
+### Hydration Issues Debugging:
+1. Check browser extensions (ad blockers, etc.) that modify DOM
+2. Use React DevTools Profiler to identify hydration mismatches
+3. Compare server HTML vs client HTML in browser dev tools
+4. Temporarily add `__NEXT_DISABLE_HYDRATION_WARNING=true` for debugging only
+
+---
+
+**Last Updated**: 2025-10-08
+
+This guide consolidates best practices from multiple projects and should be adapted to your specific project needs.
+
+## 📌 Quick Reference
+
+### Before Starting Any Task:
+1. ✅ Check package manager (yarn.lock or package-lock.json)
+2. ✅ Review existing components before creating new ones
+3. ✅ Consult schema files if working with data
+4. ✅ Check for project-specific CLAUDE.md in repository
+
+### Before Committing:
+1. ✅ `git diff` - Review all changes
+2. ✅ `yarn build` or `npm run build` - Verify build passes
+3. ✅ `yarn test` or `npm test` - Run tests if available
+4. ✅ Fix all errors before committing
+5. ✅ Update schema/documentation if data structures changed
+
+### When Deploying:
+1. ✅ All tests passing
+2. ✅ Build successful
+3. ✅ Environment variables configured
+4. ✅ Database rules updated (if applicable)
+5. ✅ Security review completed
+6. ✅ Cost impact assessed
